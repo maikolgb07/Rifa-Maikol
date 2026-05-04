@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🎰 Sistema de Rifas</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #060b18;
+    --bg2: #0d1529;
+    --bg3: #111e38;
+    --border: #1e3055;
+    --accent: #f0a500;
+    --accent2: #e05c00;
+    --blue: #1d6fe8;
+    --green: #16a34a;
+    --red: #dc2626;
+    --text: #e8edf5;
+    --muted: #5a7098;
+    --card: #0d1a30;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+  /* BG EFFECT */
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(ellipse 80% 60% at 10% 0%,#1d3a7022 0%,transparent 60%),
+    radial-gradient(ellipse 60% 50% at 90% 100%,#f0a50010 0%,transparent 60%);
+    pointer-events:none;z-index:0;}
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:#0d1529;}
+  ::-webkit-scrollbar-thumb{background:#1d6fe8;border-radius:3px;}
+
+  /* TOAST */
+  #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);
+    padding:12px 28px;border-radius:12px;font-weight:700;font-size:14px;
+    z-index:9999;transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    box-shadow:0 8px 32px #0009;pointer-events:none;max-width:90vw;text-align:center;}
+  #toast.show{transform:translateX(-50%) translateY(0);}
+  #toast.success{background:#052e16;border:1px solid #16a34a;color:#4ade80;}
+  #toast.error{background:#2d0a0a;border:1px solid #dc2626;color:#f87171;}
+  #toast.info{background:#0d1e3d;border:1px solid #1d6fe8;color:#93c5fd;}
+
+  /* SCREENS */
+  .screen{display:none;min-height:100vh;position:relative;z-index:1;}
+  .screen.active{display:flex;flex-direction:column;align-items:center;}
+
+  /* ── HEADER ── */
+  #main-header{
+    width:100%;max-width:980px;
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 20px 20px;
+    border-bottom:1px solid var(--border);
+    gap:14px;flex-wrap:wrap;
+  }
+  .header-left{display:flex;align-items:center;gap:16px;}
+  #profile-ring{
+    width:58px;height:58px;border-radius:50%;
+    border:2px solid var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg3);overflow:hidden;flex-shrink:0;
+    box-shadow:0 0 18px #f0a50033;
+  }
+  #profile-ring img{width:100%;height:100%;object-fit:cover;}
+  #rifa-title{
+    font-family:'Bebas Neue',sans-serif;
+    font-size:clamp(22px,5vw,36px);letter-spacing:2px;
+    background:linear-gradient(120deg,#f0a500,#e05c00);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    line-height:1;
+  }
+  #rifa-subtitle{color:var(--muted);font-size:13px;margin-top:3px;}
+  .header-btns{display:flex;gap:8px;}
+  .btn-outline{
+    background:transparent;border:1px solid var(--border);
+    color:var(--muted);padding:8px 16px;border-radius:9px;
+    cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:600;
+    transition:all .2s;
+  }
+  .btn-outline:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ── WINNER BANNER ── */
+  #winner-banner{
+    width:100%;max-width:980px;
+    margin:0 20px 20px;
+    background:linear-gradient(120deg,#2a1500,#1a0900);
+    border:2px solid var(--accent);
+    border-radius:16px;padding:16px 24px;
+    display:flex;align-items:center;gap:16px;
+    animation:pulseGold 2.5s infinite;
+    display:none;
+  }
+  #winner-banner.show{display:flex;}
+  @keyframes pulseGold{0%,100%{box-shadow:0 0 20px #f0a50033}50%{box-shadow:0 0 40px #f0a50066}}
+  .winner-emoji{font-size:36px;flex-shrink:0;}
+  .winner-tag{font-size:10px;color:var(--accent);font-weight:900;letter-spacing:4px;text-transform:uppercase;}
+  .winner-info-name{font-size:20px;font-weight:800;color:#fde68a;}
+  .winner-info-num{font-size:13px;color:var(--muted);}
+
+  /* ── NUMBER GRID ── */
+  #grid-wrap{width:100%;max-width:980px;padding:0 16px;}
+  #num-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(60px,1fr));
+    gap:7px;
+  }
+  .num-btn{
+    aspect-ratio:1;border-radius:11px;border:none;
+    font-family:'Outfit',sans-serif;font-weight:800;font-size:14px;
+    cursor:pointer;transition:all .15s;position:relative;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .num-btn.free{background:#071a10;color:#22c55e;border:1px solid #14532d;}
+  .num-btn.free:hover{background:#0d2e1a;transform:scale(1.08);box-shadow:0 0 12px #22c55e44;}
+  .num-btn.taken{background:#1a0707;color:#ef4444;border:1px solid #7f1d1d;cursor:not-allowed;}
+  .num-btn.winner{background:linear-gradient(135deg,#78350f,#451a03);color:#fde68a;border:2px solid var(--accent);animation:pulseGold 2s infinite;}
+  .crown{position:absolute;top:-9px;right:-4px;font-size:13px;}
+
+  .legend{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap;justify-content:center;}
+  .leg-item{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;}
+  .leg-dot{width:10px;height:10px;border-radius:50%;}
+
+  /* ── MODAL ── */
+  .modal-bg{
+    display:none;position:fixed;inset:0;
+    background:#000b;z-index:500;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-bg.open{display:flex;}
+  .modal{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:20px;padding:32px 28px;
+    width:100%;max-width:440px;
+    box-shadow:0 24px 80px #000c;
+    position:relative;animation:popIn .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-close{
+    position:absolute;top:14px;right:16px;
+    background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;
+  }
+  .modal-title{
+    font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;
+    background:linear-gradient(120deg,#f0a500,#e05c00);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:6px;
+  }
+  .num-badge{
+    width:72px;height:72px;border-radius:50%;
+    background:linear-gradient(135deg,#1d6fe8,#0d3d99);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fff;
+    margin:0 auto 16px;box-shadow:0 0 24px #1d6fe855;
+  }
+  label.lbl{display:block;color:var(--muted);font-size:12px;font-weight:700;
+    letter-spacing:.5px;text-transform:uppercase;margin:14px 0 6px;}
+  input.inp{
+    width:100%;background:var(--bg3);border:1px solid var(--border);
+    border-radius:10px;padding:12px 14px;color:var(--text);
+    font-size:14px;font-family:'Outfit',sans-serif;outline:none;
+    transition:border .2s;
+  }
+  input.inp:focus{border-color:var(--blue);}
+  .btn-main{
+    width:100%;margin-top:20px;padding:14px;border:none;border-radius:12px;
+    background:linear-gradient(135deg,#1d6fe8,#0d3d99);
+    color:#fff;font-size:15px;font-family:'Outfit',sans-serif;
+    font-weight:800;cursor:pointer;transition:opacity .2s;
+    letter-spacing:.5px;
+  }
+  .btn-main:hover{opacity:.88;}
+  .btn-main:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-danger{background:linear-gradient(135deg,#dc2626,#7f1d1d);}
+  .btn-gold{background:linear-gradient(135deg,#d97706,#92400e);}
+  .btn-green{background:linear-gradient(135deg,#16a34a,#14532d);}
+
+  /* ── ADMIN PANEL ── */
+  #admin-screen .admin-wrap{
+    width:100%;max-width:760px;padding:20px;
+  }
+  .admin-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;}
+  .back-btn{
+    background:none;border:1px solid var(--border);
+    color:var(--muted);padding:8px 14px;border-radius:9px;
+    cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;
+    transition:all .2s;
+  }
+  .back-btn:hover{color:var(--text);border-color:var(--muted);}
+  .admin-title{font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;color:var(--accent);}
+
+  .tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;}
+  .tab-btn{
+    flex:1;min-width:100px;padding:10px 8px;border:1px solid var(--border);
+    background:var(--bg3);color:var(--muted);border-radius:10px;
+    cursor:pointer;font-size:13px;font-family:'Outfit',sans-serif;font-weight:700;
+    transition:all .2s;
+  }
+  .tab-btn.active{background:#0d1e3d;border-color:var(--blue);color:#93c5fd;}
+
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  /* RULETA */
+  #roulette-wrap{display:flex;flex-direction:column;align-items:center;gap:18px;padding:10px 0;}
+  #roulette-canvas{border-radius:50%;box-shadow:0 0 50px #f0a50033,0 0 100px #1d6fe820;}
+  #spin-btn{
+    padding:16px 52px;border:none;border-radius:14px;
+    background:linear-gradient(135deg,#f0a500,#e05c00);
+    color:#000;font-size:17px;font-family:'Bebas Neue',sans-serif;
+    letter-spacing:3px;cursor:pointer;transition:all .2s;
+    box-shadow:0 0 24px #f0a50044;
+  }
+  #spin-btn:hover:not(:disabled){transform:scale(1.05);box-shadow:0 0 40px #f0a50077;}
+  #spin-btn:disabled{opacity:.5;cursor:not-allowed;}
+  #winner-result{
+    background:linear-gradient(135deg,#2a1500,#1a0900);
+    border:2px solid var(--accent);border-radius:16px;
+    padding:20px 28px;text-align:center;width:100%;max-width:380px;
+    display:none;
+  }
+  #winner-result.show{display:block;animation:popIn .4s ease;}
+  .wr-num{font-family:'Bebas Neue',sans-serif;font-size:64px;color:var(--accent);line-height:1;}
+  .wr-name{font-size:22px;font-weight:800;color:#fde68a;margin:4px 0;}
+  .wr-data{color:var(--muted);font-size:13px;}
+
+  /* SETTINGS */
+  .settings-section{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:14px;padding:20px;margin-bottom:16px;
+  }
+  .settings-title{font-size:14px;font-weight:700;color:var(--muted);
+    text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+  .inp-row{display:flex;gap:8px;align-items:flex-end;}
+  .inp-row .inp{flex:1;}
+  .btn-sm{
+    padding:12px 18px;border:none;border-radius:10px;
+    background:linear-gradient(135deg,#1d6fe8,#0d3d99);
+    color:#fff;font-size:13px;font-family:'Outfit',sans-serif;
+    font-weight:700;cursor:pointer;white-space:nowrap;
+  }
+  .profile-preview{
+    display:flex;flex-direction:column;align-items:center;gap:12px;
+    padding:16px;background:var(--bg3);border-radius:12px;
+    border:1px dashed var(--border);
+  }
+  .profile-preview img,#preview-circle{
+    width:80px;height:80px;border-radius:50%;object-fit:cover;
+    border:2px solid var(--accent);
+  }
+  #preview-circle{background:var(--bg3);display:flex;align-items:center;
+    justify-content:center;font-size:36px;}
+  .upload-label{
+    padding:9px 20px;background:var(--bg3);border:1px solid var(--border);
+    border-radius:9px;color:var(--muted);cursor:pointer;font-size:13px;font-weight:600;
+    transition:all .2s;
+  }
+  .upload-label:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* PARTICIPANTS LIST */
+  #participants-list{display:flex;flex-direction:column;gap:7px;max-height:420px;overflow-y:auto;}
+  .p-row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg3);border-radius:10px;padding:10px 14px;
+    border:1px solid var(--border);transition:border .2s;
+  }
+  .p-row.is-winner{border-color:var(--accent);background:#1a0d00;}
+  .p-num{
+    min-width:44px;height:40px;border-radius:8px;
+    background:#0d1e3d;color:#93c5fd;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Bebas Neue',sans-serif;font-size:16px;flex-shrink:0;
+  }
+  .p-info{flex:1;min-width:0;}
+  .p-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .p-data{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .p-actions{display:flex;gap:5px;flex-shrink:0;}
+  .p-btn{
+    border:none;border-radius:7px;padding:6px 10px;cursor:pointer;
+    font-size:13px;font-weight:700;transition:opacity .2s;
+  }
+  .p-btn:hover{opacity:.8;}
+  .p-btn.wa{background:#14532d;color:#86efac;}
+  .p-btn.del{background:#7f1d1d;color:#fca5a5;}
+
+  /* DANGER ZONE */
+  .danger-zone{
+    border:1px solid #7f1d1d;border-radius:12px;
+    padding:18px;background:#0d0303;margin-top:8px;
+  }
+  .danger-title{color:#ef4444;font-size:13px;font-weight:700;
+    text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;}
+
+  /* RESPONSIVE */
+  @media(max-width:500px){
+    #num-grid{grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:5px;}
+    .num-btn{font-size:12px;}
+    .modal{padding:24px 18px;}
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 1: HOME
+════════════════════════════════════════════════════ -->
+<div id="home-screen" class="screen active">
+
+  <header id="main-header">
+    <div class="header-left">
+      <div id="profile-ring">
+        <span id="profile-icon">🎰</span>
+      </div>
+      <div>
+        <div id="rifa-title">GRAN RIFA 2025</div>
+        <div id="rifa-subtitle">0/100 números tomados</div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="btn-outline" onclick="showScreen('admin-login-screen')">⚙ Admin</button>
+    </div>
+  </header>
+
+  <div id="winner-banner">
+    <div class="winner-emoji">🏆</div>
+    <div>
+      <div class="winner-tag">Ganador de la Rifa</div>
+      <div class="winner-info-name" id="banner-winner-name">—</div>
+      <div class="winner-info-num" id="banner-winner-num">Número —</div>
+    </div>
+    <div class="winner-emoji">🎊</div>
+  </div>
+
+  <div id="grid-wrap">
+    <div id="num-grid"></div>
+    <div class="legend">
+      <span class="leg-item"><span class="leg-dot" style="background:#22c55e"></span>Disponible</span>
+      <span class="leg-item"><span class="leg-dot" style="background:#ef4444"></span>Tomado</span>
+      <span class="leg-item"><span class="leg-dot" style="background:#f0a500"></span>Ganador</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 2: ADMIN LOGIN
+════════════════════════════════════════════════════ -->
+<div id="admin-login-screen" class="screen">
+  <div style="margin-top:80px;width:100%;max-width:400px;padding:0 20px;">
+    <div class="modal" style="position:relative;animation:none;">
+      <button class="back-btn" onclick="showScreen('home-screen')" style="margin-bottom:16px;">← Volver</button>
+      <div style="font-size:48px;text-align:center;margin-bottom:8px;">🔐</div>
+      <div class="modal-title" style="text-align:center;display:block;">Panel Admin</div>
+      <p style="color:var(--muted);font-size:13px;text-align:center;margin-bottom:4px;">Contraseña por defecto: <b style="color:var(--accent)">admin1234</b></p>
+      <label class="lbl">Contraseña</label>
+      <input class="inp" type="password" id="admin-pass-input" placeholder="Ingresa la contraseña" onkeydown="if(event.key==='Enter')checkAdminPass()"/>
+      <button class="btn-main" onclick="checkAdminPass()">Entrar al Panel →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SCREEN 3: ADMIN PANEL
+════════════════════════════════════════════════════ -->
+<div id="admin-screen" class="screen">
+  <div class="admin-wrap">
+    <div class="admin-header">
+      <button class="back-btn" onclick="showScreen('home-screen');renderGrid()">← Volver al inicio</button>
+      <span class="admin-title">⚙ Administración</span>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-ruleta',this)">🎡 Ruleta</button>
+      <button class="tab-btn" onclick="switchTab('tab-participantes',this)">👥 Participantes</button>
+      <button class="tab-btn" onclick="switchTab('tab-ajustes',this)">⚙ Ajustes</button>
+    </div>
+
+    <!-- TAB RULETA -->
+    <div id="tab-ruleta" class="tab-content active">
+      <div id="roulette-wrap">
+        <p style="color:var(--muted);font-size:13px;text-align:center;" id="roulette-hint">Carga los participantes para activar la ruleta.</p>
+        <canvas id="roulette-canvas" width="320" height="320"></canvas>
+        <button id="spin-btn" onclick="spinRoulette()" disabled>🎡 GIRAR RULETA</button>
+        <div id="winner-result">
+          <div style="font-size:28px;margin-bottom:4px;">🏆</div>
+          <div class="wr-num" id="wr-num">—</div>
+          <div class="wr-name" id="wr-name">—</div>
+          <div class="wr-data" id="wr-data">—</div>
+          <button class="btn-main btn-green" style="margin-top:14px;" id="wr-wa-btn" onclick="notifyWinnerWA()">💬 Notificar por WhatsApp</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB PARTICIPANTES -->
+    <div id="tab-participantes" class="tab-content">
+      <p id="participants-count" style="color:var(--muted);font-size:13px;margin-bottom:12px;"></p>
+      <div id="participants-list"></div>
+    </div>
+
+    <!-- TAB AJUSTES -->
+    <div id="tab-ajustes" class="tab-content">
+      <div class="settings-section">
+        <div class="settings-title">🏷 Nombre de la Rifa</div>
+        <div class="inp-row">
+          <input class="inp" id="settings-name" placeholder="Nombre de la rifa" />
+          <button class="btn-sm" onclick="saveName()">Guardar</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">🖼 Foto de Perfil</div>
+        <div class="profile-preview">
+          <div id="preview-circle">🎰</div>
+          <label class="upload-label">
+            📷 Cambiar imagen
+            <input type="file" accept="image/*" style="display:none" onchange="uploadProfileImg(this)"/>
+          </label>
+          <button class="btn-sm btn-danger" onclick="removeProfileImg()" style="padding:8px 16px;font-size:12px;">✕ Quitar imagen</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">🔑 Cambiar Contraseña Admin</div>
+        <input class="inp" type="password" id="new-pass" placeholder="Nueva contraseña" style="margin-bottom:8px;"/>
+        <input class="inp" type="password" id="new-pass2" placeholder="Confirmar contraseña"/>
+        <button class="btn-main" style="margin-top:12px;" onclick="changePass()">Cambiar Contraseña</button>
+      </div>
+
+      <div class="settings-section danger-zone">
+        <div class="danger-title">⚠ Zona de Peligro</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px;">Esto eliminará TODOS los participantes y el ganador. No se puede deshacer.</p>
+        <button class="btn-main btn-danger" onclick="resetRifa()">🗑 Eliminar Rifa y Reiniciar</button>
+      </div>
+    </div>
+
+  </div><!-- /admin-wrap -->
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL: REGISTRO DE NÚMERO
+════════════════════════════════════════════════════ -->
+<div id="register-modal" class="modal-bg">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="num-badge" id="modal-num">1</div>
+    <div class="modal-title" style="text-align:center;">Registrar Número</div>
+    <p style="color:var(--muted);font-size:13px;text-align:center;margin-bottom:4px;">
+      Completa tus datos para reservar el número <b id="modal-num-text" style="color:var(--accent)">1</b>
+    </p>
+    <label class="lbl">Nombre y Apellido</label>
+    <input class="inp" id="reg-name" placeholder="Ej: Juan Pérez"/>
+    <label class="lbl">Teléfono WhatsApp (con código de país)</label>
+    <input class="inp" id="reg-phone" placeholder="Ej: 50688001234" type="tel"/>
+    <label class="lbl">Correo Electrónico</label>
+    <input class="inp" id="reg-email" placeholder="correo@ejemplo.com" type="email"/>
+    <button class="btn-main" id="reg-btn" onclick="saveRegistration()">✅ Confirmar mi número</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATA LAYER
+// ══════════════════════════════════════════
+const TOTAL = 100;
+let state = {
+  name: "GRAN RIFA 2025",
+  profileImg: null,
+  adminPass: "admin1234",
+  participants: {},   // { "42": { name, phone, email } }
+  winner: null        // { numero, name, phone, email }
+};
+
+function loadState() {
+  const raw = localStorage.getItem("rifaState");
+  if (raw) { try { state = JSON.parse(raw); } catch(e) {} }
+}
+function saveState() {
+  localStorage.setItem("rifaState", JSON.stringify(state));
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let toastTimer;
+function toast(msg, type="info") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = "", 3200);
+}
+
+// ══════════════════════════════════════════
+//  SCREENS
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+// ══════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════
+function switchTab(tabId, btn) {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById(tabId).classList.add("active");
+  btn.classList.add("active");
+  if (tabId === "tab-participantes") renderParticipants();
+  if (tabId === "tab-ajustes") initSettings();
+  if (tabId === "tab-ruleta") { initRoulette(); }
+}
+
+// ══════════════════════════════════════════
+//  HOME RENDER
+// ══════════════════════════════════════════
+function renderHome() {
+  document.getElementById("rifa-title").textContent = state.name;
+  document.title = "🎰 " + state.name;
+  const taken = Object.keys(state.participants).length;
+  document.getElementById("rifa-subtitle").textContent = `${taken}/100 números tomados`;
+
+  // Profile
+  const ring = document.getElementById("profile-ring");
+  if (state.profileImg) {
+    ring.innerHTML = `<img src="${state.profileImg}" alt="logo"/>`;
+  } else {
+    ring.innerHTML = `<span id="profile-icon" style="font-size:28px">🎰</span>`;
+  }
+
+  // Winner banner
+  const banner = document.getElementById("winner-banner");
+  if (state.winner) {
+    banner.classList.add("show");
+    document.getElementById("banner-winner-name").textContent = state.winner.name;
+    document.getElementById("banner-winner-num").textContent = `Número ${state.winner.numero}`;
+  } else {
+    banner.classList.remove("show");
+  }
+}
+
+function renderGrid() {
+  const grid = document.getElementById("num-grid");
+  grid.innerHTML = "";
+  for (let i = 1; i <= TOTAL; i++) {
+    const isTaken = !!state.participants[i];
+    const isWinner = state.winner && state.winner.numero === i;
+    const btn = document.createElement("button");
+    btn.className = "num-btn " + (isWinner ? "winner" : isTaken ? "taken" : "free");
+    btn.innerHTML = i + (isWinner ? '<span class="crown">👑</span>' : "");
+    btn.title = isTaken ? `Tomado por ${state.participants[i].name}` : `Número ${i} — Disponible`;
+    if (!isTaken) btn.onclick = () => openRegister(i);
+    else if (isTaken && !isWinner) btn.onclick = () => toast(`El número ${i} ya fue seleccionado. ¡Elige otro!`, "error");
+    grid.appendChild(btn);
+  }
+}
+
+// ══════════════════════════════════════════
+//  REGISTRATION MODAL
+// ══════════════════════════════════════════
+let selectedNum = null;
+function openRegister(n) {
+  if (state.participants[n]) { toast(`El número ${n} ya fue tomado.`, "error"); return; }
+  selectedNum = n;
+  document.getElementById("modal-num").textContent = n;
+  document.getElementById("modal-num-text").textContent = n;
+  document.getElementById("reg-name").value = "";
+  document.getElementById("reg-phone").value = "";
+  document.getElementById("reg-email").value = "";
+  document.getElementById("register-modal").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("register-modal").classList.remove("open");
+}
+document.getElementById("register-modal").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+
+function saveRegistration() {
+  const name = document.getElementById("reg-name").value.trim();
+  const phone = document.getElementById("reg-phone").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  if (!name || !phone || !email) { toast("Completa todos los campos.", "error"); return; }
+  if (state.participants[selectedNum]) { toast("Ese número ya fue tomado. Elige otro.", "error"); closeModal(); renderGrid(); return; }
+  state.participants[selectedNum] = { name, phone, email };
+  saveState();
+  closeModal();
+  renderGrid();
+  renderHome();
+  toast(`✅ ¡Número ${selectedNum} registrado a nombre de ${name}!`, "success");
+}
+
+// ══════════════════════════════════════════
+//  ADMIN LOGIN
+// ══════════════════════════════════════════
+function checkAdminPass() {
+  const val = document.getElementById("admin-pass-input").value;
+  if (val === state.adminPass) {
+    document.getElementById("admin-pass-input").value = "";
+    showScreen("admin-screen");
+    switchTab("tab-ruleta", document.querySelector(".tab-btn"));
+    initRoulette();
+  } else {
+    toast("Contraseña incorrecta.", "error");
+  }
+}
+
+// ══════════════════════════════════════════
+//  ROULETTE
+// ══════════════════════════════════════════
+const ROULETTE_COLORS = [
+  "#1d6fe8","#d97706","#16a34a","#9333ea","#dc2626",
+  "#0891b2","#65a30d","#b45309","#7c3aed","#0d9488",
+  "#ea580c","#2563eb","#16a34a","#ca8a04","#9f1239"
+];
+let spinning = false;
+let currentAngle = 0;
+
+function getTaken() {
+  return Object.keys(state.participants).map(Number);
+}
+
+function initRoulette() {
+  const taken = getTaken();
+  const hint = document.getElementById("roulette-hint");
+  const spinBtn = document.getElementById("spin-btn");
+  const wr = document.getElementById("winner-result");
+
+  if (state.winner) {
+    hint.textContent = "🏆 La rifa ya tiene ganador.";
+    spinBtn.disabled = true;
+    wr.classList.add("show");
+    document.getElementById("wr-num").textContent = "#" + state.winner.numero;
+    document.getElementById("wr-name").textContent = state.winner.name;
+    document.getElementById("wr-data").textContent = state.winner.phone + " · " + state.winner.email;
+    drawRoulette(0);
+    return;
+  }
+
+  wr.classList.remove("show");
+  if (taken.length < 2) {
+    hint.textContent = "Necesitas al menos 2 participantes para girar.";
+    spinBtn.disabled = true;
+  } else {
+    hint.textContent = `${taken.length} participantes en la ruleta. ¡Listo para girar!`;
+    spinBtn.disabled = false;
+  }
+  drawRoulette(0);
+}
+
+function drawRoulette(angle) {
+  const canvas = document.getElementById("roulette-canvas");
+  const ctx = canvas.getContext("2d");
+  const taken = getTaken();
+  const items = taken.length > 0 ? taken : Array.from({length:10},(_,i)=>i+1);
+  const count = items.length;
+  const W = canvas.width, cx = W/2, cy = W/2, r = W/2 - 10;
+  const slice = (2 * Math.PI) / count;
+
+  ctx.clearRect(0,0,W,W);
+
+  // Outer glow ring
+  ctx.beginPath();
+  ctx.arc(cx,cy,r+6,0,2*Math.PI);
+  ctx.fillStyle = "#0d1529"; ctx.fill();
+  ctx.strokeStyle = "#f0a50044"; ctx.lineWidth = 4; ctx.stroke();
+
+  items.forEach((num, i) => {
+    const start = angle + i * slice;
+    const end = start + slice;
+    const isWin = state.winner && num === state.winner.numero;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start,end);
+    ctx.closePath();
+    ctx.fillStyle = isWin ? "#f0a500" : ROULETTE_COLORS[i % ROULETTE_COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = "#060b18"; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate(start + slice/2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = isWin ? "#000" : "#fff";
+    ctx.font = `bold ${count>40?8:count>20?10:13}px Outfit,sans-serif`;
+    ctx.shadowColor = "#0008"; ctx.shadowBlur = 3;
+    ctx.fillText(num, r-8, 4);
+    ctx.restore();
+  });
+
+  // Center hub
+  ctx.beginPath();
+  ctx.arc(cx,cy,22,0,2*Math.PI);
+  ctx.fillStyle = "#060b18"; ctx.fill();
+  ctx.strokeStyle = "#f0a500"; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = "#f0a500"; ctx.font = "16px serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("★", cx, cy);
+
+  // Pointer (right side)
+  ctx.beginPath();
+  ctx.moveTo(cx+r-2, cy);
+  ctx.lineTo(cx+r+22, cy-11);
+  ctx.lineTo(cx+r+22, cy+11);
+  ctx.closePath();
+  ctx.fillStyle = "#f0a500";
+  ctx.shadowColor = "#f0a500"; ctx.shadowBlur = 10;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+function spinRoulette() {
+  if (spinning || state.winner) return;
+  const taken = getTaken();
+  if (taken.length < 2) { toast("Necesitas al menos 2 participantes.", "error"); return; }
+
+  spinning = true;
+  document.getElementById("spin-btn").disabled = true;
+  document.getElementById("spin-btn").textContent = "🎡 Girando...";
+
+  const totalRotation = (Math.PI * 2 * 8) + Math.random() * Math.PI * 2;
+  const startAngle = currentAngle;
+  const duration = 4500;
+  const startTime = Date.now();
+
+  function animate() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out quart
+    const ease = 1 - Math.pow(1 - progress, 4);
+    currentAngle = startAngle + totalRotation * ease;
+    drawRoulette(currentAngle);
+    if (progress < 1) { requestAnimationFrame(animate); return; }
+
+    // Determine winner from pointer (right = angle 0)
+    // Pointer is at angle 0 (right). Find which slice is at angle 0 after spin.
+    const count = taken.length;
+    const slice = (2 * Math.PI) / count;
+    const normalAngle = ((0 - currentAngle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const idx = Math.floor(normalAngle / slice) % count;
+    const winNum = taken[idx];
+    const winData = { numero: winNum, ...state.participants[winNum] };
+
+    state.winner = winData;
+    saveState();
+    spinning = false;
+
+    drawRoulette(currentAngle);
+
+    // Show result
+    const wr = document.getElementById("winner-result");
+    wr.classList.add("show");
+    document.getElementById("wr-num").textContent = "#" + winNum;
+    document.getElementById("wr-name").textContent = winData.name;
+    document.getElementById("wr-data").textContent = winData.phone + " · " + winData.email;
+    document.getElementById("spin-btn").textContent = "🏆 ¡Ganador elegido!";
+
+    renderHome();
+    toast(`🏆 ¡GANADOR: ${winData.name} con el número ${winNum}!`, "success");
+  }
+  requestAnimationFrame(animate);
+}
+
+function notifyWinnerWA() {
+  if (!state.winner) return;
+  const w = state.winner;
+  const msg = `🎉 ¡Felicitaciones ${w.name}! 🎊\n\nEres el GANADOR de la rifa *${state.name}*! 🏆\n\nTu número ganador fue el *${w.numero}*.\n\nPronto nos pondremos en contacto contigo. ¡Muchas gracias por participar!`;
+  const phone = w.phone.replace(/\D/g, "");
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+}
+
+// ══════════════════════════════════════════
+//  PARTICIPANTS
+// ══════════════════════════════════════════
+function renderParticipants() {
+  const taken = getTaken();
+  const list = document.getElementById("participants-list");
+  document.getElementById("participants-count").textContent = `${taken.length} de 100 números tomados`;
+  list.innerHTML = "";
+  if (taken.length === 0) {
+    list.innerHTML = `<p style="color:var(--muted);text-align:center;padding:32px;">No hay participantes aún.</p>`;
+    return;
+  }
+  taken.sort((a,b)=>a-b).forEach(n => {
+    const p = state.participants[n];
+    const isWin = state.winner && state.winner.numero === n;
+    const row = document.createElement("div");
+    row.className = "p-row" + (isWin?" is-winner":"");
+    row.innerHTML = `
+      <div class="p-num">${n}${isWin?' 👑':''}</div>
+      <div class="p-info">
+        <div class="p-name">${p.name}</div>
+        <div class="p-data">${p.phone} · ${p.email}</div>
+      </div>
+      <div class="p-actions">
+        <button class="p-btn wa" onclick="waMsg(${n})" title="Notificar WhatsApp">💬</button>
+        <button class="p-btn del" onclick="deleteParticipant(${n})" title="Eliminar">✕</button>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function waMsg(n) {
+  const p = state.participants[n];
+  const msg = `Hola ${p.name}, te contactamos de la rifa *${state.name}* sobre tu número *${n}*. ¡Saludos!`;
+  const phone = p.phone.replace(/\D/g,"");
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, "_blank");
+}
+
+function deleteParticipant(n) {
+  if (!confirm(`¿Eliminar al participante del número ${n}?`)) return;
+  if (state.winner && state.winner.numero === n) {
+    if (!confirm("Este participante es el ganador. ¿Seguro que deseas eliminarlo?")) return;
+    state.winner = null;
+  }
+  delete state.participants[n];
+  saveState();
+  renderParticipants();
+  renderGrid();
+  renderHome();
+  toast(`Participante #${n} eliminado.`, "info");
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function initSettings() {
+  document.getElementById("settings-name").value = state.name;
+  const pc = document.getElementById("preview-circle");
+  if (state.profileImg) {
+    pc.outerHTML = `<img id="preview-circle" src="${state.profileImg}" alt="preview"/>`;
+  } else {
+    const img = document.getElementById("preview-circle");
+    if (img && img.tagName === "IMG") {
+      img.outerHTML = `<div id="preview-circle" style="background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:36px;width:80px;height:80px;border-radius:50%;border:2px solid var(--accent)">🎰</div>`;
+    }
+  }
+}
+
+function saveName() {
+  const v = document.getElementById("settings-name").value.trim();
+  if (!v) { toast("El nombre no puede estar vacío.", "error"); return; }
+  state.name = v;
+  saveState();
+  renderHome();
+  toast("Nombre actualizado.", "success");
+}
+
+function uploadProfileImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    state.profileImg = e.target.result;
+    saveState();
+    initSettings();
+    renderHome();
+    toast("Imagen actualizada.", "success");
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeProfileImg() {
+  state.profileImg = null;
+  saveState();
+  initSettings();
+  renderHome();
+  toast("Imagen eliminada.", "info");
+}
+
+function changePass() {
+  const p1 = document.getElementById("new-pass").value;
+  const p2 = document.getElementById("new-pass2").value;
+  if (!p1) { toast("Ingresa una contraseña.", "error"); return; }
+  if (p1 !== p2) { toast("Las contraseñas no coinciden.", "error"); return; }
+  if (p1.length < 6) { toast("La contraseña debe tener al menos 6 caracteres.", "error"); return; }
+  state.adminPass = p1;
+  saveState();
+  document.getElementById("new-pass").value = "";
+  document.getElementById("new-pass2").value = "";
+  toast("Contraseña actualizada.", "success");
+}
+
+function resetRifa() {
+  if (!confirm("¿Seguro? Esto borrará TODOS los participantes y el ganador.")) return;
+  if (!confirm("Esta acción NO se puede deshacer. ¿Confirmas?")) return;
+  state.participants = {};
+  state.winner = null;
+  saveState();
+  renderHome();
+  renderGrid();
+  initRoulette();
+  toast("Rifa reiniciada.", "info");
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+loadState();
+renderHome();
+renderGrid();
+</script>
+</body>
+</html>
