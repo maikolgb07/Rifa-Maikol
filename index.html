@@ -1148,13 +1148,9 @@ function initRoulette() {
   const wc      = document.getElementById('win-card');
 
   if(st.winner) {
-    const u = st.users[st.winner.uid];
     hint.textContent = '🏆 Esta rifa ya tiene un ganador registrado.';
     spinBtn.disabled = true;
-    wc.classList.add('on');
-    document.getElementById('wc-num').textContent  = '#' + st.winner.numero;
-    document.getElementById('wc-name').textContent = u ? u.name : '—';
-    document.getElementById('wc-data').textContent = u ? `${u.phone}  ·  ${u.email}` : '—';
+    showWinCard();
     drawWheel(_angle); return;
   }
 
@@ -1264,25 +1260,48 @@ function doSpin() {
 
     drawWheel(_angle);
 
-    const u = st.users[winUid];
-    const wc = document.getElementById('win-card');
-    wc.classList.add('on');
-    document.getElementById('wc-num').textContent  = '#' + winNum;
-    document.getElementById('wc-name').textContent = u ? u.name : '—';
-    document.getElementById('wc-data').textContent = u ? `${u.phone}  ·  ${u.email}` : '—';
+    showWinCard();
     sb.textContent = '🏆 Ganador elegido';
     renderWinRibbon();
+    const u = st.users[winUid];
     toast(`🏆 ¡GANADOR: ${u?.name || '?'} — Número ${winNum}!`, 'ok');
   };
   requestAnimationFrame(frame);
 }
 
+// Helper: populate and show the winner card
+function showWinCard() {
+  if(!st.winner) return;
+  // Try to find user by uid, fallback: scan tickets for matching numero
+  let u = st.users[st.winner.uid];
+  if(!u) {
+    // Fallback: find uid from tickets and look up user
+    const fallbackUid = st.tickets[st.winner.numero];
+    if(fallbackUid) u = st.users[fallbackUid];
+  }
+  const wc = document.getElementById('win-card');
+  wc.classList.add('on');
+  document.getElementById('wc-num').textContent  = '#' + st.winner.numero;
+  document.getElementById('wc-name').textContent = u ? u.name  : '— Sin nombre —';
+  document.getElementById('wc-data').textContent = u ? `📞 ${u.phone}   ✉️ ${u.email}` : '—';
+}
+
 function notifyWA() {
   if(!st.winner) return;
-  const u = st.users[st.winner.uid];
-  if(!u) return;
+  let u = st.users[st.winner.uid];
+  if(!u) {
+    const fallbackUid = st.tickets[st.winner.numero];
+    if(fallbackUid) u = st.users[fallbackUid];
+  }
+  if(!u || !u.phone) {
+    toast('No se encontró el teléfono del ganador.','err'); return;
+  }
+  const phone = u.phone.replace(/\D/g,'');
+  if(!phone) { toast('El teléfono del ganador no es válido.','err'); return; }
   const msg = `🎉 ¡Felicitaciones ${u.name}! 🎊\n\nEres el *GANADOR* de la rifa *${st.name}*! 🏆\n\nTu número de la suerte fue el *${st.winner.numero}*.\n\nPronto nos pondremos en contacto contigo para hacerte llegar tu premio. ¡Muchas gracias por participar!`;
-  window.open(`https://wa.me/${u.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  // Use location.href for mobile compatibility (avoids popup blockers)
+  window.location.href = url;
 }
 
 /* ─────────────────── PARTICIPANTS ─────────────────── */
@@ -1318,9 +1337,11 @@ function renderParts() {
 function sendWA(n) {
   const uid = st.tickets[n];
   const u   = st.users[uid];
-  if(!u) return;
+  if(!u || !u.phone) { toast('Sin teléfono registrado.','err'); return; }
+  const phone = u.phone.replace(/\D/g,'');
+  if(!phone) { toast('Número de teléfono no válido.','err'); return; }
   const msg = `Hola ${u.name}, te contactamos en relación a la rifa *${st.name}* por tu número *${n}*. ¡Saludos!`;
-  window.open(`https://wa.me/${u.phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+  window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
 }
 
 function freeTkt(n) {
